@@ -1,0 +1,1126 @@
+{% extends 'page.html' %}
+
+{% block head %}
+    <meta name="description" content="{{ recipe.description }}"/>
+    <meta property="og:title" content="{{ recipe.name }} - {% if publicuser %}{{ publicuser.name }} - {% endif %}Malt.io"/>
+    <meta property="og:description" content="{{ recipe.description }}"/>
+{% endblock %}
+
+{% block scripts %}
+    <script type="text/javascript">
+        {% if recipe.old %}
+            Recipe.oldVersion = true;
+        {% endif %}
+
+        $(document).ready(function () {
+            Recipe.init();
+            Recipe.updateStats();
+            Mash.init();
+            BeerStyles.init();
+            Brew.init();
+        });
+
+        $(window).load(function () {
+            window.loaded = true;
+        });
+
+        window.fbAsyncInit = function () {
+            FB.init({
+                appId      : '414221561958592', // App ID
+                channelUrl : '{{ base_url }}/static/channel.html', // Channel File
+                status     : true, // check login status
+                cookie     : true, // enable cookies to allow the server to access the session
+                xfbml      : true  // parse XFBML
+            });
+
+            // Track Facebook actions in Google Analytics
+            FB.Event.subscribe('edge.create', function(targetUrl) {
+                _gaq.push(['_trackSocial', 'facebook', 'like', targetUrl]);
+            });
+
+            FB.Event.subscribe('edge.remove', function(targetUrl) {
+                _gaq.push(['_trackSocial', 'facebook', 'unlike', targetUrl]);
+            });
+
+            FB.Event.subscribe('message.send', function(targetUrl) {
+                _gaq.push(['_trackSocial', 'facebook', 'send', targetUrl]);
+            });
+        };
+
+        (function(d){
+            var js, id = 'facebook-jssdk', ref = d.getElementsByTagName('script')[0];
+            if (d.getElementById(id)) {return;}
+            js = d.createElement('script'); js.id = id; js.async = true;
+            js.src = "//connect.facebook.net/en_US/all.js";
+            ref.parentNode.insertBefore(js, ref);
+        }(document));
+
+        var disqus_shortname = 'maltio';
+        {% if debug %}
+            var disqus_developer = 1;
+        {% endif %}
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+{% endblock %}
+
+{% block title %}{{ recipe.name }} - {% if publicuser %}{{ publicuser.name }} - {% endif %}Malt.io{% endblock %}
+
+{% block content %}
+    <div id="saveMsg" class="alert alert-info" style="position: fixed; z-index: 999; width: 889px; top: 43px; opacity: 0.9; display: none;">
+        {% if user %}
+            You are currently editing this recipe. Your changes have not yet been saved. <div class="pull-right"><a class="btn btn-mini" href=""><i class="icon-remove"></i> Cancel</a>{% if recipe.new %} <a class="btn btn-warning btn-mini" href="" onclick="Recipe.clearLocal();"><i class="icon-exclamation-sign icon-white"></i> Clear recipe</a>{% endif %} <a class="btn btn-info btn-mini" onclick="Recipe.save();"><i class="icon-book icon-white"></i> Save recipe</a></div>
+        {% else %}
+            You are currently editing this recipe. Your changes have not been saved. <a href="/profile">Log in</a> to save recipes.{% if recipe.new %}<a class="btn btn-warning btn-mini pull-right" href="" onclick="Recipe.clearLocal();"><i class="icon-exclamation-sign icon-white"></i> Clear recipe</a> {% endif %}
+        {% endif %}
+    </div>
+    {% if publicuser %}
+        <ul class="breadcrumb">
+            <li><a href="/">home</a><span class="divider">/</span></li>
+            <li><a href="/users" itemprop="breadcrumb">users</a><span class="divider">/</span></li>
+            <li><a href="/users/{{ publicuser.name }}" itemprop="breadcrumb">{{ publicuser.name }}</a><span class="divider">/</span></li>
+            <li><a href="/users/{{ publicuser.name }}/recipes" itemprop="breadcrumb">recipes</a><span class="divider">/</span></li>
+            <li id="crumbName">{{ recipe.name }}</li>
+        </ul>
+    {% endif %}
+    {% if recipe.old %}
+        <div class="alert">
+            <strong>Heads up!</strong>
+            This is an old version of a recipe that has been updated. The latest version of this recipe can be found <a href="/users/{{ publicuser.name }}/recipes/{{ recipe.slug }}">here</a>.
+        </div>
+    {% endif %}
+    <div itemscope itemtype="http://schema.org/Recipe">
+    <meta itemprop="author" content="{{ recipe.owner.name }}"/>
+    <meta itemprop="recipeCategory" content="beverage"/>
+    <div itemprop="aggregateRating" itemscope itemtype="http://schema.org/AggregateRating">
+        <meta itemprop="ratingValue" content="{{ recipe.avg_review }}"/>
+        <meta itemprop="reviewCount" content="{{ recipe.review_count }}"/>
+    </div>
+    <div class="hero-unit editable" style="padding: 30px 60px;">
+        {% if cloned_from %}
+            <p style="opacity: 0.5;">
+                Cloned from <a href="/users/{{ cloned_from.owner.name }}">{{ cloned_from.owner.name }}</a> / <a href="/users/{{ cloned_from.owner.name }}/recipes/{{ cloned_from.slug }}">{{ cloned_from.name }}</a>
+            </p>
+        {% endif %}
+        <div class="price-container" itemprop="offers" itemscope itemtype="http://schema.org/Offer">
+            <div class="price-tag">
+                $ <span id="total_cost" itemprop="price">0.00</span>
+                <br/>
+                <span class="small"><span id="bottle_cost">0</span>&#162; / <span title="12 oz / 0.3l">bottle</span></span>
+            </div>
+        </div>
+        <h1 id="recipeName" itemprop="name">{% if recipe.old %}{{ recipe.oldname }}{% else %}{{ recipe.name }}{% endif %}</h1>
+        <p id="recipeDescription" itemprop="description">{{ recipe.description }}</p>
+        <div style="font-size: 100%; line-height: 12pt; margin-bottom: 0.5em;">
+            Style: <span id="styleName" data-category="{{ recipe.category }}" data-style="{{ recipe.style }}">{{ recipe.style_display }}</span>
+            <div class="edit-hide">
+                <br/>
+                Batch size: <span itemprop="recipeYield"><span id="batchSize">{{ recipe.batch_size }}</span> gallons</span>
+                <br/>
+                Boil size: <span id="boilSize">{{ recipe.boil_size }}</span> average gallons
+            </div>
+        </div>
+        <div class="btn-group edit-hide" style="float: left;">
+            {% if not recipe.old %}
+            {% if publicuser and user and user.name == publicuser.name %}
+                <a id="edit-button" class="btn{% if recipe.old %} disabled{% endif %}"><i class="icon-pencil"></i> Edit</a>
+                <a class="btn{% if recipe.old %} disabled{% endif %}"{% if not recipe.old %} data-toggle="modal" href="#deleteModal"{% endif %}><i class="icon-remove"></i> Delete</a>
+            {% endif %}
+            {% endif %}
+            {% if recipe.old %}
+                <a class="btn disabled"><i class="icon-share"></i> Clone</a>
+            {% else %}
+                <a class="btn" data-toggle="modal" href="#cloneModal"><i class="icon-share"></i> Clone</a>
+            {% endif %}
+            <a class="btn" onclick="Brew.show('', '{{ now|format_date('%H:%M') }}', '{{ now|format_date('%d %b %Y') }}');"><i class="icon-fire"></i> Brew</a>
+            <a class="btn" data-toggle="modal" href="#scaleModal"><i class="icon-signal"></i> Scale</a>
+            <a class="btn" href="/users/{{ publicuser.name }}/recipes/{{ recipe.slug }}/history"><i class="icon-time"></i> History</a>
+            {% if not recipe.old %}
+                <a id="widget-button" class="btn" data-toggle="modal" href="#widgetModal"><i class="icon-globe"></i> Widget</a>
+                <a class="btn" href="/users/{{ publicuser.name }}/recipes/{{ recipe.slug }}/beerxml"><i class="icon-download-alt"></i> Export</a>
+            {% else %}
+                <a class="btn" href="/users/{{ publicuser.name }}/recipes/{{ recipe.slug }}"><i class="icon-arrow-up"></i> Latest</a>
+                <a class="btn disabled"><i class="icon-download-alt"></i> Export</a>
+            {% endif %}
+        </div>
+        <div class="btn-group edit-show" class="float: left; display: none;">
+            <a class="btn" data-toggle="modal" href="#styleModal"><i class="icon-tint"></i> Edit Style</a>
+            <a class="btn" data-toggle="modal" href="#scaleModal"><i class="icon-signal"></i> Scale</a>
+        </div>
+        <div class="edit-hide" style="float: left; margin-left: 1em; margin-top: 4px; position: relative;">
+            <div class="g-plusone" data-size="medium" data-annotation="none"></div>&nbsp;
+            <div class="fb-like" data-layout="button_count" data-width="90" data-show-faces="false" style="top: -3px;"></div>
+        </div>
+        <div class="clearfix"></div>
+    </div>
+    {% if brews %}
+        <h2 class="edit-hide">Recent Brews</h2>
+        <div class="row edit-hide">
+        {% for brew in brews %}
+            <div class="brew span4 pull-left" itemprop="review" itemscope itemtype="http://schema.org/Review">
+                <div class="brewContent">
+                    <meta itemprop="itemReviewed" content="{{ recipe.name }}"/>
+                    <div style="float: right">
+                        {% if brew.rating %}
+                        <div itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+                            <meta itemprop="worstRating" content="1"/>
+                            <meta itemprop="bestRating" content="5"/>
+                            <meta itemprop="ratingValue" content="{{ brew.rating }}"/>
+                        </div>
+                        {% endif %}
+                        {{ brew|render_rating }}
+                    </div>
+                    <div><strong itemprop="datePublished" datetime="{{ brew.started|format_date('%Y-%m-%dT%H:%M') }}">{{ brew.started|format_date }}</strong> by <a href="/users/{{ brew.owner.name }}" title="{{ brew.owner.name }}" itemprop="author">{{ brew.owner.name_crop() }}</a></div>
+                    {% if brew.owner.name == user.name %}
+                        <a class="pull-right btn btn-inverse btn-mini" onclick="Brew.show('{{ brew.slug }}', '{{ brew.started|format_date('%H:%M') }}', '{{ brew.started|format_date('%d %b %Y') }}', '{{ brew.bottled|format_date('%H:%M') }}', '{{ brew.bottled|format_date('%d %b %Y') }}', {{ brew.og|fixed3 }}, {{ brew.fg|fixed3 }}, {{ brew.rating }}, '{{ brew.notes_safe }}');">edit</a>
+                    {% endif %}
+                    <div style="font-size: 80%;"><strong>OG</strong> {% if brew.og %}{{ brew.og|fixed3 }}{% else %}not measured{% endif %}&nbsp;&nbsp;<strong>FG</strong> {% if brew.fg %}{{ brew.fg|fixed3 }}{% else %}not measured{% endif %}</div>
+                    <div class="notes" itemprop="reviewBody">{{ brew.notes.replace('\n', '<br/>') }}{% if brew.bottled %}<br/>Bottled on {{ brew.bottled|format_date }}.{% endif %}</div>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+    {% endif %}
+    <h2 style="display:inline-block">
+        Fermentable Sugars
+    </h2>
+    <div class="btn-toolbar edit-show" style="display: none;" id="fermentmenu">
+        <div class="btn-group">
+            <a id="newFermentable" class="btn" data-description="New ingredient" data-ppg="32" data-srm="2" onclick="Recipe.addFermentableRowTemplate(this);"><i class="icon-plus-sign"></i></a>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> Malt extract
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['Extra pale liquid extract', 37, 2]|render_fermentable_template }}
+                {{ ['Extra light dry extract', 42, 2.5]|render_fermentable_template }}
+                {{ ['Pale liquid extract', 35, 4]|render_fermentable_template }}
+                {{ ['Maris Otter liquid extract', 36, 4.5]|render_fermentable_template }}
+                {{ ['Amber liquid extract', 35, 10]|render_fermentable_template }}
+                {{ ['Dark liquid extract', 35, 30]|render_fermentable_template }}
+                {{ ['Wheat liquid extract', 35, 3]|render_fermentable_template }}
+                {{ ['Wheat dry extract', 42, 3]|render_fermentable_template }}
+                {{ ['Rye liquid extract', 35, 6]|render_fermentable_template }}
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> Base malts
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['Pilsner malt', 34, 1]|render_fermentable_template }}
+                {{ ['Pale 2-row malt', 37, 2]|render_fermentable_template }}
+                {{ ['Pale 6-row malt', 33, 2]|render_fermentable_template }}
+                {{ ['Munich malt', 37, 8]|render_fermentable_template }}
+                {{ ['Wheat malt', 39, 3]|render_fermentable_template }}
+                {{ ['Rye malt', 29, 4]|render_fermentable_template }}
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> Caramel malts
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['Carapils', 35, 1.5]|render_fermentable_template }}
+                {{ ['Caramel 10L', 35, 10]|render_fermentable_template }}
+                {{ ['Caramel 20L', 35, 20]|render_fermentable_template }}
+                {{ ['Caramel 40L', 34, 40]|render_fermentable_template }}
+                {{ ['Caramel 60L', 34, 60]|render_fermentable_template }}
+                {{ ['Caramel 80L', 33, 80]|render_fermentable_template }}
+                {{ ['Caramel 120L', 33, 120]|render_fermentable_template }}
+                {{ ['Special B', 34, 147]|render_fermentable_template }}
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> Roasted malts
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['Biscuit', 35, 23]|render_fermentable_template }}
+                {{ ['Chocolate', 30, 350]|render_fermentable_template }}
+                {{ ['Black malt', 28, 500]|render_fermentable_template }}
+                {{ ['Roasted barley', 33, 500]|render_fermentable_template }}
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> Adjuncts
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['Flaked barley', 32, 2]|render_fermentable_template }}
+                {{ ['Flaked wheat', 34, 2]|render_fermentable_template }}
+                {{ ['Flaked oats', 33, 2]|render_fermentable_template }}
+                {{ ['Flaked rye', 36, 3]|render_fermentable_template }}
+                {{ ['Flaked rice', 40, 0.5]|render_fermentable_template }}
+                {{ ['Flaked corn', 40, 0.5]|render_fermentable_template }}
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> Sugar
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['Table sugar', 46, 0]|render_fermentable_template }}
+                {{ ['Corn sugar', 46, 0.5]|render_fermentable_template }}
+                {{ ['Clover honey', 42, 2]|render_fermentable_template }}
+                {{ ['Lactose', 35, 1]|render_fermentable_template }}
+                {{ ['Belgian light candi', 38, 1]|render_fermentable_template }}
+                {{ ['Belgian dark candi', 38, 60]|render_fermentable_template }}
+                {{ ['D-45 candi syrup', 32, 45]|render_fermentable_template }}
+                {{ ['D-90 candi syrup', 32, 90]|render_fermentable_template }}
+                {{ ['D-180 candi syrup', 32, 180]|render_fermentable_template }}
+            </ul>
+        </div>
+    </div>
+    <div id="stylebtn">
+        <svg width="92" height="30" viewPort="0 0 92 30" version="1.1" xmlns="http://www.w3.org/2000/svg">
+            <a id="styleguide" onmousedown="return false;" data-toggle="modal" href="#styleGuideModal">
+                <polygon points="1,15 11,2.5 91.5,2.5 91.5,27.5 11,27.5" id="bg" />
+            </a>
+            <polygon points="2.5,15 11.5,3.5 90.5,3.5 90.5,26.5 11.5,26.5" id="hilight" />
+            <polygon points="5,15 12.5,5.5 88.5,5.5 88.5,24.5 12.5,24.5" id="stitch" />
+        </svg>
+        <span>Style Guide</span>
+    </div>
+    <div class="row">
+        <div class="span10">
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th class="num col5">%</th>
+                        <th class="num col5">LB</th>
+                        <th class="num col5">OZ</th>
+                        <th>Description</th>
+                        <th class="col5">Late</th>
+                        <th class="num col5"><abbr title="Points per Pound per Gallon">PPG</abbr></th>
+                        <th class="num col8" colspan="2">&deg;L</th>
+                        <th class="edit-show col14p"></th>
+                    </tr>
+                </thead>
+                <tbody id="fermentables_data">
+                    {% for ingredient in recipe.ingredients.fermentables %}
+                        <tr>
+                            <td class="num percent">0</td>
+                            <td class="num validate positive integer">{{ ingredient.weight|weight_whole }}</td>
+                            <td class="num validate positive integer">{{ ingredient.weight|weight_fractional(16) }}</td>
+                            <td itemprop="ingredients">{{ ingredient.description }}</td>
+                            <td>{{ ingredient.late }}</td>
+                            <td class="num validate positive integer">{{ ingredient.ppg }}</td>
+                            <td class="num"><span class="srm" data-srm="{{ ingredient.color }}"></span> </td>
+                            <td class="num validate positive integer" style="border-left: none;">{{ ingredient.color }}</td>
+                            <td class="edit-show" style="display: none; padding: 10px 8px;"><a href="#" class="remove"><i class="icon-remove"></i></a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="span2">
+            <h6>Original Gravity</h6>
+            <span id="original_gravity" title="">
+                1.000
+            </span>
+            <h6>Final Gravity</h6>
+            <span id="final_gravity" title="">
+                1.000
+            </span>
+            <h6>Color</h6>
+            <span>
+                <span id="recipe_color" class="srm" data-srm="1"></span> <span id="recipe_color_value" title="">1</span>&deg; <abbr title="Standard Reference Method">SRM</abbr>
+            </span>
+        </div>
+    </div>
+    <h2>Bittering &amp; Spices</h2>
+    <div class="btn-toolbar edit-show" style="display: none;">
+        <div class="btn-group">
+            <a id="newSpice" class="btn" data-description="New ingredient" data-aa="5.0" onclick="Recipe.addHopRowTemplate(this);"><i class="icon-plus-sign"></i></a>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> US - A to M
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['Ahatanum', 5.0]|render_hops_template }}
+                {{ ['Amarillo', 8.0]|render_hops_template }}
+                {{ ['Cascade', 6.0]|render_hops_template }}
+                {{ ['Centennial', 10.0]|render_hops_template }}
+                {{ ['Chinook', 12.0]|render_hops_template }}
+                {{ ['Citra', 10.0]|render_hops_template }}
+                {{ ['Cluster', 7.0]|render_hops_template }}
+                {{ ['Columbus', 14.0]|render_hops_template }}
+                {{ ['Crystal', 3.5]|render_hops_template }}
+                {{ ['Glacier', 6.0]|render_hops_template }}
+                {{ ['Horizon', 12.5]|render_hops_template }}
+                {{ ['Liberty', 4.5]|render_hops_template }}
+                {{ ['Magnum', 14.5]|render_hops_template }}
+                {{ ['Mt. Hood', 4.5]|render_hops_template }}
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> US - N to Z
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['Nugget', 12.0]|render_hops_template }}
+                {{ ['Palisade', 6.0]|render_hops_template }}
+                {{ ['Santiam', 6.0]|render_hops_template }}
+                {{ ['Simcoe', 13.0]|render_hops_template }}
+                {{ ['Sterling', 7.5]|render_hops_template }}
+                {{ ['Summit', 18.0]|render_hops_template }}
+                {{ ['Target', 9.0]|render_hops_template }}
+                {{ ['Ultra', 3.0]|render_hops_template }}
+                {{ ['US Saaz', 3.0]|render_hops_template }}
+                {{ ['Warrior', 16.5]|render_hops_template }}
+                {{ ['Willamett', 4.5]|render_hops_template }}
+                {{ ['Zeus', 16.0]|render_hops_template }}
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> UK hops
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['Bambling Cross', 6.0]|render_hops_template }}
+                {{ ['Brewers Gold', 8.0]|render_hops_template }}
+                {{ ['Challenger', 7.0]|render_hops_template }}
+                {{ ['East Kent Goldings', 5.5]|render_hops_template }}
+                {{ ['First Gold', 7.5]|render_hops_template }}
+                {{ ['Fuggles', 4.5]|render_hops_template }}
+                {{ ['Northdown', 9.5]|render_hops_template }}
+                {{ ['Progress', 6.0]|render_hops_template }}
+                {{ ['Whitbread Goldings', 6.0]|render_hops_template }}
+                {{ ['Yeoman', 7.0]|render_hops_template }}
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> German hops
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['German Tradition', 6.0]|render_hops_template }}
+                {{ ['Hallertau Hersbrucker', 3.5]|render_hops_template }}
+                {{ ['Hallertau Mittelfrüh', 4.5]|render_hops_template }}
+                {{ ['Northern Brewer', 8.5]|render_hops_template }}
+                {{ ['Orion', 7.0]|render_hops_template }}
+                {{ ['Perle', 7.0]|render_hops_template }}
+                {{ ['Spalt', 4.5]|render_hops_template }}
+                {{ ['Tettnanger', 4.5]|render_hops_template }}
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> Other hops
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['B.C. Goldings', 5.5]|render_hops_template }}
+                {{ ['Czech Saaz', 3.5]|render_hops_template }}
+                {{ ['Pride of Ringwood', 10.0]|render_hops_template }}
+                {{ ['Sticklebract', 10.5]|render_hops_template }}
+                {{ ['Strisselspalt', 3.0]|render_hops_template }}
+                {{ ['Styrian Goldings', 5.5]|render_hops_template }}
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> Spices
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['Anise', 0.0]|render_hops_template }}
+                {{ ['Caraway', 0.0]|render_hops_template }}
+                {{ ['Cardamom', 0.0]|render_hops_template }}
+                {{ ['Chamomile', 0.0]|render_hops_template }}
+                {{ ['Clove', 0.0]|render_hops_template }}
+                {{ ['Cinnamon', 0.0]|render_hops_template }}
+                {{ ['Coriander', 0.0]|render_hops_template }}
+                {{ ['Ginger', 0.0]|render_hops_template }}
+                {{ ['Grains of paradise', 0.0]|render_hops_template }}
+                {{ ['Irish moss', 0.0]|render_hops_template }}
+                {{ ['Jasmine', 0.0]|render_hops_template }}
+                {{ ['Lavender', 0.0]|render_hops_template }}
+                {{ ['Orange peel', 0.0]|render_hops_template }}
+                {{ ['Pepper', 0.0]|render_hops_template }}
+                {{ ['Rose hips', 0.0]|render_hops_template }}
+            </ul>
+        </div>
+    </div>
+    <div class="row">
+        <div class="span10">
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th class="col10">Use</th>
+                        <th class="num col10">Time</th>
+                        <th class="num col5">OZ</th>
+                        <th>Description</th>
+                        <th class="col10">Form</th>
+                        <th class="num col5"><abbr title="Alpha Acid %">AA%</abbr></th>
+                        <th class="edit-show col14p"></th>
+                    </tr>
+                </thead>
+                <tbody id="hops_data">
+                    {% for ingredient in recipe.ingredients.spices %}
+                        <tr>
+                            <td>{{ ingredient.use }}</td>
+                            <td class="num">{{ ingredient.time }}</td>
+                            <td class="num validate positive number">{{ ingredient.oz }}</td>
+                            <td itemprop="ingredients">{{ ingredient.description }}</td>
+                            <td>{{ ingredient.form }}</td>
+                            <td class="num validate positive number">{{ ingredient.aa }}</td>
+                            <td class="edit-show"><a href="#" class="remove"><i class="icon-remove"></i></a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="span2">
+            <h6>Bitterness</h6>
+            <p>
+                <span id="ibu" title="">0.0</span> <abbr title="International Bitterness Units">IBU</abbr>
+                <br/>
+                <small><strong>&fnof;</strong>: Tinseth</small>
+            </p>
+            <h6><abbr title="Bitterness Units to Gravity Units">BU:GU</abbr></h6>
+            <p id="buToGu">
+                0.0
+            </p>
+        </div>
+    </div>
+    <h2>Yeast &amp; Bugs</h2>
+    <div class="btn-toolbar edit-show" style="display: none;">
+        <div class="btn-group">
+            <a id="newYeast" class="btn" data-description="New ingredient" data-type="ale" data-form="liquid" data-attenuation="75" onclick="Recipe.addYeastRowTemplate(this);"><i class="icon-plus-sign"></i></a>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> Wyeast Ale
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['Wyeast 1010 - American Wheat&trade;', 'ale', 'liquid', 78, 10, 58, 74]|render_yeast_template }}
+                {{ ['Wyeast 1056 - American Ale&trade;', 'ale', 'liquid', 77, 11, 60, 72]|render_yeast_template }}
+                {{ ['Wyeast 1214 - Belgian Abbey&trade;', 'ale', 'liquid', 78, 12, 68, 78]|render_yeast_template }}
+                {{ ['Wyeast 1388 - Belgian Strong Ale&trade;', 'ale', 'liquid', 78, 13, 64, 80]|render_yeast_template }}
+                {{ ['Wyeast 1728 - Scottish Ale&trade;', 'ale', 'liquid', 73, 12, 55, 75]|render_yeast_template }}
+                {{ ['Wyeast 1762 - Belgian Abbey II&trade;', 'ale', 'liquid', 77, 12, 65, 75]|render_yeast_template }}
+                {{ ['Wyeast 3068 - Weihenstephan Weizen&trade;', 'ale', 'liquid', 77, 10, 64, 75]|render_yeast_template }}
+                {{ ['Wyeast 3711 - French Saison&trade;', 'ale', 'liquid', 83, 12, 65, 77]|render_yeast_template }}
+                {{ ['Wyeast 3724 - Belgian Saison&trade;', 'ale', 'liquid', 80, 12, 70, 95]|render_yeast_template }}
+                {{ ['Wyeast 3944 - Belgian Witbier&trade;', 'ale', 'liquid', 76, 12, 62, 75]|render_yeast_template }}
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> Wyeast Lager
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['Wyeast 2000 - Budvar Lager&trade;', 'lager', 'liquid', 75, 9, 48, 56]|render_yeast_template }}
+                {{ ['Wyeast 2035 - American Lager&trade;', 'lager', 'liquid', 77, 9, 48, 58]|render_yeast_template }}
+                {{ ['Wyeast 2206 - Bavarian Lager&trade;', 'lager', 'liquid', 77, 9, 46, 58]|render_yeast_template }}
+                {{ ['Wyeast 2278 - Czech Pils&trade;', 'lager', 'liquid', 74, 9, 50, 58]|render_yeast_template }}
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> White Labs Ale
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['WLP001 - California Ale', 'ale', 'liquid', 76, 12, 68, 73]|render_yeast_template }}
+                {{ ['WLP002 - English Ale', 'ale', 'liquid', 67, 9, 65, 68]|render_yeast_template }}
+                {{ ['WLP004 - Irish Ale', 'ale', 'liquid', 72, 10, 65, 68]|render_yeast_template }}
+                {{ ['WLP029 - German Ale \ Kölsch', 'ale', 'liquid', 75, 9, 65, 69]|render_yeast_template }}
+                {{ ['WLP300 - Hefeweizen Ale', 'ale', 'liquid', 74, 9, 68, 72]|render_yeast_template }}
+                {{ ['WLP400 - Belgian Wit Ale', 'ale', 'liquid', 76, 9, 67, 74]|render_yeast_template }}
+                {{ ['WLP500 - Trappist Ale', 'ale', 'liquid', 78, 12, 65, 72]|render_yeast_template }}
+                {{ ['WLP530 - Abbey Ale', 'ale', 'liquid', 78, 15, 66, 72]|render_yeast_template }}
+                {{ ['WLP565 - Belgian Saison I', 'ale', 'liquid', 70, 9, 68, 75]|render_yeast_template }}
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> White Labs Lager
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['WLP800 - Pilsner Lager', 'ale', 'liquid', 74, 8, 50, 55]|render_yeast_template }}
+                {{ ['WLP810 - San Francisgo Lager', 'ale', 'liquid', 68, 8, 58, 65]|render_yeast_template }}
+                {{ ['WLP820 - Oktoberfest / Märzen Lager', 'ale', 'liquid', 69, 10, 52, 58]|render_yeast_template }}
+                {{ ['WLP830 - German Lager', 'ale', 'liquid', 76, 8, 50, 55]|render_yeast_template }}
+                {{ ['WLP840 - American Lager', 'ale', 'liquid', 77, 8, 50, 55]|render_yeast_template }}
+                {{ ['WLP940 - Mexican Lager', 'ale', 'liquid', 74, 8, 50, 55]|render_yeast_template }}
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> Dry yeast
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['Safale US-05', 'ale', 'dry', 72, 9, 59, 75]|render_yeast_template }}
+                {{ ['Safale S-04', 'ale', 'dry', 72, 9, 59, 75]|render_yeast_template }}
+                {{ ['Safbrew S-33', 'ale', 'dry', 77, 12, 59, 75]|render_yeast_template }}
+                {{ ['Safbrew T-58', 'ale', 'dry', 72, 12, 59, 75]|render_yeast_template }}
+                {{ ['Safbrew WB-06', 'ale', 'dry', 72, 9, 59, 75]|render_yeast_template }}
+                {{ ['Saflager S-23', 'lager', 'dry', 72, 9, 48, 59]|render_yeast_template }}
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-plus-sign"></i> Other bugs
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {{ ['Wyeast 5112 - Brettanomyces bruxellensis&trade;', 'other', 'liquid', 85, 12, 60, 75]|render_yeast_template }}
+                {{ ['Wyeast 5526 - Brettanomyces lambicus&trade;', 'other', 'liquid', 85, 12, 60, 75]|render_yeast_template }}
+                {{ ['Wyeast 5733 - Pediococcus&trade;', 'other', 'liquid', 0, 9, 60, 95]|render_yeast_template }}
+                {{ ['Wyeast 5335 - Lactobacillus&trade;', 'other', 'liquid', 0, 9, 60, 95]|render_yeast_template }}
+            </ul>
+        </div>
+    </div>
+    <div class="row">
+        <div class="span10">
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>Strain</th>
+                        <th class="col10">Type</th>
+                        <th class="col10">Form</th>
+                        <th class="num col10">Attenuation</th>
+                        <th class="edit-show col14p"></th>
+                    </tr>
+                </thead>
+                <tbody id="yeast_data">
+                    {% for ingredient in recipe.ingredients.yeast %}
+                        <tr>
+                            <td itemprop="ingredients">{{ ingredient.description }}</td>
+                            <td>{{ ingredient.type }}</td>
+                            <td>{{ ingredient.form }}</td>
+                            <td class="num validate positive number">{{ ingredient.attenuation }}</td>
+                            <td class="edit-show"><a href="#" class="remove"><i class="icon-remove"></i></a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="span2" itemprop="nutrition" itemscope itemtype="http://schema.org/NutritionInformation">
+            <meta itemprop="servingSize" content="0.33l"/>
+            <h6>Alcohol</h6>
+            <p>
+                <span id="abv" title="">0.0</span>% <abbr title="Alcohol By Volume">ABV</abbr>
+            </p>
+            <h6>Calories</h6>
+            <p>
+                <span id="calories" itemprop="calories">{{ recipe.calories }}</span> per <span title="12 oz / 0.3l">bottle</span>
+            </p>
+        </div>
+    </div>
+    <h2>Priming &amp; Storage</h2>
+    <div class="row">
+        <div class="span10">
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Fermentable</th>
+                        <th class="num">Grams</th>
+                        <th class="num">OZ</th>
+                        <th class="num">Teaspoons</th>
+                        <th class="num">Cups</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Corn sugar</td>
+                        <td id="corn_sugar_grams" class="num">0</td>
+                        <td id="corn_sugar_oz" class="num">0</td>
+                        <td id="corn_sugar_tsp" class="num">0</td>
+                        <td id="corn_sugar_cups" class="num">0</td>
+                    </tr>
+                    <tr>
+                        <td>Table sugar</td>
+                        <td id="table_sugar_grams" class="num">0</td>
+                        <td id="table_sugar_oz" class="num">0</td>
+                        <td id="table_sugar_tsp" class="num">0</td>
+                        <td id="table_sugar_cups" class="num">0</td>
+                    </tr>
+                    <tr>
+                        <td>Honey</td>
+                        <td id="honey_grams" class="num">0</td>
+                        <td id="honey_oz" class="num">0</td>
+                        <td id="honey_tsp" class="num">0</td>
+                        <td id="honey_cups" class="num">0</td>
+                    </tr>
+                    <tr>
+                        <td>Dry malt extract</td>
+                        <td id="dme_grams" class="num">0</td>
+                        <td id="dme_oz" class="num">0</td>
+                        <td id="dme_tsp" class="num">0</td>
+                        <td id="dme_cups" class="num">0</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="span2 editable">
+            <h6>Temperature</h6>
+            <p>
+                <span id="bottling_temp" class="validate positive number">{{ recipe.bottling_temp }}</span>&deg;F
+            </p>
+            <h6>Volumes</h6>
+            <p>
+                <span id="bottling_pressure" class="validate positive number">{{ recipe.bottling_pressure }}</span>
+            </p>
+            <h6><span title="12 oz / 0.3l">Bottles</span></h6>
+            <p id="bottle_count">
+                0
+            </p>
+        </div>
+    </div>
+    <h2>Brew Timeline</h2>
+    <div class="btn-toolbar edit-show" style="display: none;">
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-tasks"></i> Customize mash
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                <li><a id="singleInfusion154" href="#"><i class="icon-tasks icon-white"></i> Single infusion 154&deg;F</a></li>
+                <li class="divider"></li>
+                <li><a href="#mashModal" data-toggle="modal"><i class="icon-wrench icon-white"></i> Custom mash profile</a></li>
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-tint"></i> Customize ferment
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                <li><a href="#" onclick="Recipe.updateFerment(14, 0, 0); return false;"><i class="icon-tint icon-white"></i> 2-week primary</a></li>
+                <li><a href="#" onclick="Recipe.updateFerment(14, 14, 0); return false;"><i class="icon-tint icon-white"></i> 2-week primary, 2-week secondary</a></li>
+                <li><a href="#" onclick="Recipe.updateFerment(14, 30, 0); return false;"><i class="icon-tint icon-white"></i> 2-week primary, 1-month secondary</a></li>
+                <li class="divider"></li>
+                <li><a href="#fermentModal" data-toggle="modal"><i class="icon-wrench icon-white"></i> Custom ferment profile</a></li>
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-time"></i> Customize aging
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                <li><a href="#" onclick="Recipe.updateAging(0); return false;"><i class="icon-glass icon-white"></i> Drink immediately</a></li>
+                <li><a href="#" onclick="Recipe.updateAging(14); return false;"><i class="icon-time icon-white"></i> 2 weeks</a></li>
+                <li><a href="#" onclick="Recipe.updateAging(30); return false;"><i class="icon-time icon-white"></i> 1 month</a></li>
+                <li><a href="#" onclick="Recipe.updateAging(60); return false;"><i class="icon-time icon-white"></i> 2 months</a></li>
+                <li><a href="#" onclick="Recipe.updateAging(90); return false;"><i class="icon-time icon-white"></i> 3 months</a></li>
+                <li><a href="#" onclick="Recipe.updateAging(180); return false;"><i class="icon-time icon-white"></i> 6 months</a></li>
+                <li><a href="#" onclick="Recipe.updateAging(365); return false;"><i class="icon-time icon-white"></i> 1 year</a></li>
+            </ul>
+        </div>
+    </div>
+    <div id="timeline" class="row">
+        <div class="line"></div>
+        <ol class="span10">
+            <li><span class="label label-inverse">Start</span> &nbsp;</li>
+            <li><span class="unknown-time">...</span>&nbsp;</li>
+            <li><span class="label label-info">14 days</span> Prime and bottle</li>
+            <li><span class="unknown-time">...</span>&nbsp;</li>
+            <li><span class="label label-inverse">28 days</span> Relax, don't worry, and have a homebrew!</li>
+        </ol>
+        <div class="span2 editable">
+            <h6>Mash Efficiency</h6>
+            <p><span id="mashEfficiency">{{ recipe.mash_efficiency }}</span>%</p>
+            <h6>Steep Efficiency</h6>
+            <p><span id="steepEfficiency">{{ recipe.steep_efficiency }}</span>%</p>
+            <h6>Brewday Time</h6>
+            <p id="brewTime" itemprop="cookTime" datetime="PT2H30M">2.5 hours</p>
+        </div>
+        <input type="hidden" id="mashSteps" value="{{ recipe.mash }}"/>
+        <input type="hidden" id="primaryDays" value="{{ recipe.primary_days }}"/>
+        <input type="hidden" id="primaryTemp" value="{{ recipe.primary_temp }}"/>
+        <input type="hidden" id="secondaryDays" value="{{ recipe.secondary_days }}"/>
+        <input type="hidden" id="secondaryTemp" value="{{ recipe.secondary_temp }}"/>
+        <input type="hidden" id="tertiaryDays" value="{{ recipe.tertiary_days }}"/>
+        <input type="hidden" id="tertiaryTemp" value="{{ recipe.tertiary_temp }}"/>
+        <input type="hidden" id="agingDays" value="{{ recipe.aging_days }}"/>
+    </div>
+    </div>
+    {% if not recipe.new and not recipe.old %}
+        <div id="disqus_thread"></div>
+    {% endif %}
+    <div class="license">
+        Creative Commons <a rel="license" href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US"><img style="border-width:0" src="http://i.creativecommons.org/l/by-sa/3.0/88x31.png" alt="This recipe is licensed under a Creative Commons Attribution-ShareAlike 3.0 Unported license." title="This recipe is licensed under a Creative Commons Attribution-ShareAlike 3.0 Unported license."/></a> Attribution ShareAlike
+    </div>
+    <div id="styleModal" class="modal fade hide">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">×</button>
+            <h3>Select Style</h3>
+        </div>
+        <div id="styleList" class="modal-body"></div>
+        <div class="modal-footer">
+            <a href="#" class="btn" data-dismiss="modal">Close</a>
+        </div>
+    </div>
+    <div id="deleteModal" class="modal fade hide">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">×</button>
+            <h3>Delete Recipe</h3>
+        </div>
+        <div class="modal-body">
+            Are you sure you want to permanently delete this recipe?
+        </div>
+        <div class="modal-footer">
+            <a href="#" class="btn" data-dismiss="modal">Cancel</a>
+            <a id="delete-button" href="#" class="btn btn-danger" data-dismiss="modal"><i class="icon-remove icon-white"></i> Confirm Delete</a>
+        </div>
+    </div>
+    <div id="cloneModal" class="modal fade hide">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">×</button>
+            <h3>Clone Recipe</h3>
+        </div>
+        <div class="modal-body">
+            Cloning this recipe will create a copy of it in your own account with the same name. You will own the copy and be able to edit, brew, and share your clone.
+        </div>
+        <div class="modal-footer">
+            <a href="#" class="btn" data-dismiss="modal">Cancel</a>
+            <a id="clone-button" href="#" class="btn btn-success" data-dismiss="modal"><i class="icon-share icon-white"></i> Clone Recipe</a>
+        </div>
+    </div>
+    <div id="brewModal" class="modal fade hide">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">×</button>
+            <h3>Brew Recipe</h3>
+        </div>
+        <div class="modal-body">
+            <p>
+                Brewing this recipe will log that you have made this beer. You can optionally give measurements, a rating, and brewing notes.
+            </p>
+            <div>
+                <h3>Dates</h3>
+                <input id="brewId" type="hidden"/>
+                <form class="form-horizontal">
+                    <div class="control-group">
+                        <input id="brewStartTime" class="timepicker" type="text" placeholder="Time" value="{{ now|format_date('%H:%M') }}"/><i class="icon-time icon-timepicker"></i>
+                        &nbsp;&nbsp;
+                        <input id="brewStartDate" class="datepicker span2" size="16" type="text" placeholder="Brew date" value="{{ now|format_date('%d %b %Y') }}"/><i class="icon-calendar icon-datepicker"></i>
+                        <div class="pull-right">
+                            <input id="brewBottleTime" class="timepicker" type="text" placeholder="Time"/><i class="icon-time icon-timepicker"></i>
+                            &nbsp;&nbsp;
+                            <input id="brewBottleDate" class="datepicker span2" size="16" type="text" placeholder="Bottle date"/><i class="icon-calendar icon-datepicker"></i>
+                        </div>
+                    </div>
+                </form>
+                <h3>Measurements</h3>
+                <input id="brewOg" type="text" placeholder="Original gravity"/>
+                <input id="brewFg" type="text" placeholder="Final gravity" class="pull-right"/>
+                <h3 class="pull-left">Rating &amp; Notes</h3><span style="display: inline-block; margin-top: 4px; margin-left: 5px;"><input name="brewRating" type="radio" class="star" value="1"/><input name="brewRating" type="radio" class="star" value="2"/><input name="brewRating" type="radio" class="star" value="3"/><input name="brewRating" type="radio" class="star" value="4"/><input name="brewRating" type="radio" class="star" value="5"/></span>
+                <textarea id="brewNotes" placeholder="Notes" rows="5" style="width: 98%"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <a href="#" class="btn" data-dismiss="modal">Cancel</a>
+            <a id="brew-button" href="#" class="btn btn-success" data-dismiss="modal"><i class="icon-fire icon-white"></i> Log Brew</a>
+        </div>
+    </div>
+    <div id="scaleModal" class="modal fade hide">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">×</button>
+            <h3>Scale Recipe</h3>
+        </div>
+        <div class="modal-body">
+            {% if publicuser and user and user.name == publicuser.name %}
+                <div class="edit-hide alert">
+                    <strong>Note:</strong> You own this recipe. This dialog will only change the values below temporarily. If you would like to permanently scale them, please close this dialog and use the edit button to edit the recipe, scale, and then save.
+                </div>
+            {% endif %}
+            <div>
+                Scaling this recipe will temporarily modify the ingredients to match new batch and boil sizes in gallons. Rounding may cause the values to change by a very small amount, but reasonable effort is taken to ensure the recipe stays true to the original pre-scaled version.<br/><br/>
+            </div>
+            <div class="row" style="position: relative;">
+                <div class="scaler">
+                    <span>Batch Size:</span>
+                    <div id="gallonsSlider" class="noUiSlider"></div>
+                    <span id="gallonsValue">{{ recipe.batch_size }}</span>
+                    <span>gallons</span>
+                </div>
+                <div class="scaler">
+                    <span>Boil Size:</span>
+                    <div id="boilGallonsSlider" class="noUiSlider"></div>
+                    <span id="boilGallonsValue">{{ recipe.boil_size }}</span>
+                    <span>gallons</span>
+                </div>
+                <div class="edit-show" style="display: none; margin-left: 20px;">
+                    <div id="scaleIngredients" class="btn-group pull-left" data-toggle="buttons-radio">
+                        <button class="btn active">On</button>
+                        <button class="btn">Off</button>
+                    </div>
+                    <div style="display: inline-block; margin-top: 5px; margin-left: 8px;">
+                        Scale recipe ingredients to match new sizes
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <a href="#" class="btn" data-dismiss="modal">Cancel</a>
+            <a id="scale-button" href="#" class="btn btn-success" data-dismiss="modal"><i class="icon-signal icon-white"></i> Scale Recipe</a>
+        </div>
+    </div>
+    <div id="widgetModal" class="modal fade hide">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">×</button>
+            <h3>Recipe Widget</h3>
+        </div>
+        <div class="modal-body">
+            <p>
+                You can share this recipe on the web by copying and pasting the code below onto your blog or website.
+            </p>
+            <div style="text-align: center;">
+                <iframe src="about:blank" data-src="{{ base_url }}/embed/{{ publicuser.name }}/{{ recipe.slug }}" width="260" height="154" frameborder="0" scrolling="no"></iframe>
+            </div>
+            <div>
+                <textarea style="width: 100%;" rows="5" onclick="this.select();">
+<!-- Malt.io Recipe Widget - copy and paste to your site -->{% if debug %}
+&lt;script type="text/javascript"&gt;var maltioBaseUrl = '{{ base_url }}';&lt;/script&gt;{% endif %}
+&lt;script src="{{ base_url }}/static/scripts/embed.js"&gt;&lt;/script&gt;
+&lt;div class="maltio-recipe" data-user="{{ publicuser.name }}" data-recipe="{{ recipe.slug }}"&gt;&lt;/div&gt;</textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <a href="#" class="btn" data-dismiss="modal">Close</a>
+        </div>
+    </div>
+        <div id="mashModal" class="modal fade hide">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">×</button>
+            <h3>Custom Mash Profile</h3>
+        </div>
+        <div class="modal-body">
+            <div>
+                Below you can customize the mash profile for your recipe. Choose the type of mash and fill in common parameters, or customize everything by writing out each step.<br/><br/>
+            </div>
+            <ul class="nav nav-tabs">
+                <li class="active"><a href="#mashSingleInfusion" data-toggle="tab">Single Infusion Step Mash</a></li>
+                <li><a href="#mashCustom" data-toggle="tab">Custom</a></li>
+            </ul>
+            <div class="tab-content">
+                <div id="mashSingleInfusion" class="tab-pane fade active in">
+                    <div class="scaler">
+                        <span>Liquid / lb:</span>
+                        <div id="quartsSlider" class="noUiSlider"></div>
+                        <span id="quartsValue">{{ recipe.mash.water_ratio }} </span>
+                        <span>qt</span>
+                    </div>
+                    <div class="mashSteps">
+                        <div id="singleInfusionSteps">
+                            {% for step in recipe.mash.steps %}
+                                <div class="mashStep">
+                                    <input type="text" value="{{ step.name }}"/>
+                                    <input type="text" value="{{ step.duration }}" style="width: 30px;"/><span> minutes at </span>
+                                    <input type="text" value="{{ step.temperature }}" style="width: 30px;"/><span> &deg;F</span>
+                                    <a class="remove" href="#"><i class="icon-remove"></i></a>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <div class="addStep">
+                            <a id="addSingleInfusionStep" href="#"><i class="icon-plus-sign"></i> Add mash step</a>
+                        </div>
+                    </div>
+                    <div class="scaler">
+                        <span>Mashout:</span>
+                        <div id="mashoutSlider" class="noUiSlider"></div>
+                        <span id="mashoutValue">{{ recipe.mash.mashout }}</span>
+                        <span>&deg;F</span>
+                    </div>
+                    <div class="scaler">
+                        <span>Sparge / lb:</span>
+                        <div id="spargeSlider" class="noUiSlider"></div>
+                        <span id="spargeValue">{{ recipe.mash.sparge }}</span>
+                        <span>qt</span>
+                    </div>
+                </div>
+                <div id="mashCustom" class="tab-pane fade">
+                    <div>
+                        Coming soon...
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <a id="mash-button" href="#" class="btn btn-success" data-dismiss="modal"><i class="icon-tasks icon-white"></i> Save Mash</a>
+        </div>
+    </div>
+    <div id="fermentModal" class="modal fade hide">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">×</button>
+            <h3>Custom Ferment Profile</h3>
+        </div>
+        <div class="modal-body">
+            <div>
+                Below you can customize the fermentation profile of this recipe by specifying the number of days spent in primary, secondary, and tertiary. Setting the secondary or tertiary ferment to zero will exclude it from the recipe.<br/><br/>
+            </div>
+            <div class="row" style="position: relative;">
+                <div class="scaler">
+                    <span>Primary:</span>
+                    <div id="primarySlider" class="noUiSlider"></div>
+                    <span id="primaryValue">{{ recipe.primary_days }}</span>
+                    <span>days</span>
+                </div>
+                <div class="scaler">
+                    <span></span>
+                    <div id="primaryTempSlider" class="noUiSlider"></div>
+                    <span id="primaryTempValue">{{ recipe.primary_temp }}</span>
+                    <span>&deg;F</span>
+                </div>
+                <div class="scaler">
+                    <span>Secondary:</span>
+                    <div id="secondarySlider" class="noUiSlider"></div>
+                    <span id="secondaryValue">{{ recipe.secondary_days }}</span>
+                    <span>days</span>
+                </div>
+                <div class="scaler">
+                    <span></span>
+                    <div id="secondaryTempSlider" class="noUiSlider"></div>
+                    <span id="secondaryTempValue">{{ recipe.secondary_temp }}</span>
+                    <span>&deg;F</span>
+                </div>
+                <div class="scaler">
+                    <span>Tertiary:</span>
+                    <div id="tertiarySlider" class="noUiSlider"></div>
+                    <span id="tertiaryValue">{{ recipe.tertiary_days }}</span>
+                    <span>days</span>
+                </div>
+                <div class="scaler">
+                    <span></span>
+                    <div id="tertiaryTempSlider" class="noUiSlider"></div>
+                    <span id="tertiaryTempValue">{{ recipe.tertiary_temp }}</span>
+                    <span>&deg;F</span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <a href="#" class="btn" data-dismiss="modal">Cancel</a>
+            <a id="ferment-button" href="#" class="btn btn-success" data-dismiss="modal"><i class="icon-tint icon-white"></i> Save Ferment</a>
+        </div>
+    </div>
+    <div id="badBrowserModal" class="modal fade hide">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">×</button>
+            <h3>Please Upgrade Your Browser</h3>
+        </div>
+        <div class="modal-body">
+            You are using a browser that does not support several features required by <strong>Malt.io</strong>. Please consider upgrading to at least Internet Explorer 10 or switching to Chrome, Firefox, or Safari.
+        </div>
+        <div class="modal-footer">
+            <a href="#" class="btn" data-dismiss="modal">Close</a>
+        </div>
+    </div>
+    <div id="styleGuideModal" class="modal fade hide">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">×</button>
+            <h3>Style Guide</h3>
+        </div>
+        <div class="modal-body" style="padding-bottom: 5px">
+            <div>
+                Below you will find a visual representation of your beer compared with its selected style. The gravities, color, bitterness, and alcohol percentage are given as ranges, and if your beer falls within those ranges it is considered to match the style.<br/><br/>
+            </div>
+            <div class="row">
+                <div class="span2">
+                    Original Gravity
+                </div>
+                <div class="span3" id="gugraph">
+                    <span class="val"></span>
+                    <div class="stylegraph">
+                        <div class="line badline"></div>
+                        <div class="line goodline"></div>
+                        <div class="cap cap1"></div>
+                        <div class="cap cap2"></div>
+                        <div class="triangle"></div>
+                    </div>
+                    <span class="min"></span>
+                    <span class="max"></span>
+                </div>
+                <div class="span1">
+                    Bitterness
+                </div>
+                <div class="span3" id="ibugraph">
+                    <span class="val"></span>
+                    <div class="stylegraph">
+                        <div class="line badline"></div>
+                        <div class="line goodline"></div>
+                        <div class="cap cap1"></div>
+                        <div class="cap cap2"></div>
+                        <div class="triangle"></div>
+                    </div>
+                    <span class="min"></span>
+                    <span class="max"></span>
+                </div>
+                <div class="span2">
+                    Final Gravity
+                </div>
+                <div class="span3" id="fggraph">
+                    <span class="val"></span>
+                    <div class="stylegraph">
+                        <div class="line badline"></div>
+                        <div class="line goodline"></div>
+                        <div class="cap cap1"></div>
+                        <div class="cap cap2"></div>
+                        <div class="triangle"></div>
+                    </div>
+                    <span class="min"></span>
+                    <span class="max"></span>
+                </div>
+                <div class="span1">
+                    Alcohol
+                </div>
+                <div class="span3" id="abvgraph">
+                    <span class="val"></span>
+                    <div class="stylegraph">
+                        <div class="line badline"></div>
+                        <div class="line goodline"></div>
+                        <div class="cap cap1"></div>
+                        <div class="cap cap2"></div>
+                        <div class="triangle"></div>
+                    </div>
+                    <span class="min"></span>
+                    <span class="max"></span>
+                </div>
+                <div class="span2">
+                    Color
+                </div>
+                <div class="span3" id="srmgraph">
+                    <span class="val"></span>
+                    <div class="stylegraph">
+                        <div class="line badline"></div>
+                        <div class="line goodline"></div>
+                        <div class="cap cap1"></div>
+                        <div class="cap cap2"></div>
+                        <div class="triangle"></div>
+                    </div>
+                    <span class="min"></span>
+                    <span class="max"></span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <a href="#" class="btn" data-dismiss="modal">Close</a>
+        </div>
+    </div>
+    <div id="fb-root"></div>
+{% endblock %}

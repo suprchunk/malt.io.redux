@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block body_attribs %} class="embed"{% endblock %}
+
+{% block body %}
+    <div class="recipe" style="width: {{ width - 26 }}px;">
+        <span class="title ellipsize">Oops, missing recipe!</span>
+        <br/>
+        <span class="missing">It appears this recipe was deleted by its {% if publicuser %}<a href="/users/{{ publicuser.name }}" target="_top">owner</a>{% else %}owner{% endif %}. Feel free to check out other recipes on <a href="/" target="_top">Malt<span style="opacity: 0.6">.io</span></a>!</span>
+        <br/>
+        <div class="footer">
+            Powered by <a href="/" target="_top">Malt<span style="opacity: 0.6">.io</span></a>
+        </div>
+    </div>
+{% endblock %}

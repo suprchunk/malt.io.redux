@@ -1,0 +1,57 @@
+<div class="action">
+    {% set owner = user_map[action.owner_key.id()] %}
+    {% if action.type == action.TYPE_USER_JOINED %}
+        <a href="/users/{{ owner.name }}"><img class="avatar-tiny" src="{{ owner.avatar_tiny }}"/> {{ owner.name }}</a> joined Malt.io {{ action.created|timesince }} ago
+    {% elif action.type == action.TYPE_USER_DONATED %}
+        <a href="/users/{{ owner.name }}"><img class="avatar-tiny" src="{{ owner.avatar_tiny }}"/> {{ owner.name }}</a> donated to Malt.io {{ action.created|timesince }} ago
+        <div class="content">
+            Everyone should buy {{ owner.name }} a beer! Thanks for supporting the site!
+        </div>
+    {% elif action.type == action.TYPE_USER_FOLLOWED %}
+        {% set u = user_map[action.object_id] %}
+        <a href="/users/{{ owner.name }}"><img class="avatar-tiny" src="{{ owner.avatar_tiny }}"/> {{ owner.name }}</a> followed another user {{ action.created|timesince }} ago
+        <div class="content">
+            <a href="/users/{{ u.name }}"><img class="avatar-tiny" src="{{ u.avatar_tiny }}"/> {{ u.name }}</a> - {{ u.recipes.count() }} recipes
+        </div>
+    {% elif action.type == action.TYPE_RECIPE_CREATED %}
+        {% set recipe = recipe_map[action.object_id] %}
+        <a href="/users/{{ owner.name }}"><img class="avatar-tiny" src="{{ owner.avatar_tiny }}"/> {{ owner.name }}</a> created a recipe {{ action.created|timesince }} ago
+        <div class="content">
+            <span class="srm" data-srm="{{ recipe.color }}"></span> <a href="/users/{{ recipe.owner.name }}/recipes/{{ recipe.slug }}">{{ recipe.name }}</a> - {{ recipe.description }}
+        </div>
+    {% elif action.type == action.TYPE_RECIPE_EDITED %}
+        {% set recipe = recipe_map[action.object_id] %}
+        <a href="/users/{{ owner.name }}"><img class="avatar-tiny" src="{{ owner.avatar_tiny }}"/> {{ owner.name }}</a> edited a recipe {{ action.created|timesince }} ago
+        <div class="content">
+            <span class="srm" data-srm="{{ recipe.color }}"></span> <a href="/users/{{ recipe.owner.name }}/recipes/{{ recipe.slug }}">{{ recipe.name }}</a> - {{ recipe.description }}
+        </div>
+    {% elif action.type == action.TYPE_RECIPE_CLONED %}
+        {% set recipe = recipe_map[action.object_id] %}
+        <a href="/users/{{ owner.name }}"><img class="avatar-tiny" src="{{ owner.avatar_tiny }}"/> {{ owner.name }}</a> cloned a recipe {{ action.created|timesince }} ago
+        <div class="content">
+            <span class="srm" data-srm="{{ recipe.color }}"></span> <a href="/users/{{ recipe.owner.name }}/recipes/{{ recipe.slug }}">{{ recipe.name }}</a> - {{ recipe.description }}
+        </div>
+    {% elif action.type == action.TYPE_RECIPE_LIKED %}
+        {% set recipe = recipe_map[action.object_id] %}
+        <a href="/users/{{ owner.name }}"><img class="avatar-tiny" src="{{ owner.avatar_tiny }}"/> {{ owner.name }}</a> liked a recipe {{ action.created|timesince }} ago
+        <div class="content">
+            <span class="srm" data-srm="{{ recipe.color }}"></span> <a href="/users/{{ recipe.owner.name }}/recipes/{{ recipe.slug }}">{{ recipe.name }}</a> - {{ recipe.description }}
+        </div>
+    {% elif action.type == action.TYPE_BREW_CREATED %}
+        {% set brew = brew_map[action.object_id] %}
+        {% set recipe = recipe_map[brew.recipe_key.id()] %}
+        <a href="/users/{{ owner.name }}"><img class="avatar-tiny" src="{{ owner.avatar_tiny }}"/> {{ owner.name }}</a> logged a brew {{ action.created|timesince }} ago
+        <div class="content">
+            {{ brew|render_rating }}&nbsp;&nbsp;<span class="srm" data-srm="{{ recipe.color }}"></span> <a href="/users/{{ recipe.owner.name }}/recipes/{{ recipe.slug }}">{{ recipe.name }}</a>: {{ brew.notes }}
+        </div>
+    {% elif action.type == action.TYPE_BREW_UPDATED %}
+        {% set brew = brew_map[action.object_id] %}
+        {% set recipe = recipe_map[brew.recipe_key.id()] %}
+        <a href="/users/{{ owner.name }}"><img class="avatar-tiny" src="{{ owner.avatar_tiny }}"/> {{ owner.name }}</a> updated a brew {{ action.created|timesince }} ago
+        <div class="content">
+            {{ brew|render_rating }}&nbsp;&nbsp;<span class="srm" data-srm="{{ recipe.color }}"></span> <a href="/users/{{ recipe.owner.name }}/recipes/{{ recipe.slug }}">{{ recipe.name }}</a>: {{ brew.notes }}
+        </div>
+    {% else %}
+        <a href="/users/{{ owner.name }}"><img class="avatar-tiny" src="{{ owner.avatar_tiny }}"/> {{ owner.name }}</a> took an action {{ action.created|timesince }} ago
+    {% endif %}
+</div>

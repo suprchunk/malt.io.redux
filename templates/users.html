@@ -1,0 +1,13 @@
+{% extends 'page.html' %}
+
+{% block title %}Users - Malt.io{% endblock %}
+
+{% block content %}
+    <ul class="breadcrumb">
+        <li><a href="/">home</a><span class="divider">/</span></li>
+        <li>users</li>
+    </ul>
+	<div class="row">
+        {{ users_content }}
+    </div>
+{% endblock %}

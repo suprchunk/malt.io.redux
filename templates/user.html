@@ -1,0 +1,89 @@
+{% extends 'page.html' %}
+
+{% block scripts %}
+    <script type="text/javascript"
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA7bBRbj46VC1Ly3doCnmLp3a-k0k9oWnI&sensor=false">
+    </script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            Recipe.init();
+            Messages.init();
+            User.init();
+            {% if publicuser.location %}
+                Map.draw('map_canvas', {{ publicuser.location.lat }}, {{ publicuser.location.lon }});
+            {% endif %}
+        });
+    </script>
+{% endblock %}
+
+{% block title %}{{ publicuser.name }} - Malt.io{% endblock %}
+
+{% block content %}
+    <ul class="breadcrumb">
+        <li><a href="/">home</a><span class="divider">/</span></li>
+        <li><a href="/users" itemprop="breadcrumb">users</a><span class="divider">/</span></li>
+        <li>{{ publicuser.name }}</li>
+    </ul>
+    <div class="btn-group pull-right">
+        {% if user and user.user_id == publicuser.user_id %}
+            <a class="btn" href="/profile">Edit profile</a>
+        {% else %}
+            <a id="followButton" class="btn{% if user and publicuser.user_id in user.following %} active{% endif %}" data-toggle="button"><i class="icon-eye-open"></i> Follow</a>
+            <a class="btn" data-toggle="modal" href="#messageModal"><i class="icon-envelope"></i> Send message</a>
+            <a class="btn disabled"><i class="icon-flag"></i> Report user</a>
+        {% endif %}
+    </div>
+    <div itemscope itemtype="http://schema.org/Person">
+    <meta itemprop="jobTitle" content="Brewer"/>
+    <h2><img class="avatar-small" itemprop="image" src="{{ publicuser.avatar_small }}"/> <span itemprop="name">{{ publicuser.name }}</span> <span itemprop="award">{{ publicuser.awards|render_awards }}</span>{% if user.is_admin %} ({{ publicuser.email }}){% endif %}</h2>
+    <hr class="clear"/>
+    <div class="span7 pull-right" style="margin-left: 0;">
+        <h6>Public Actions</h6>
+        {% for action in actions %}
+            {% include "action.html" %}
+        {% else %}
+            No recent events
+        {% endfor %}
+    </div>
+    <div class="vert-recipe-list span4 pull-left" style="margin-left: 0;">
+        {% if publicuser.location %}
+            <h6>Location</h6>
+            <div id="map_canvas" style="margin-top: 1em; margin-bottom: 1em;"></div>
+            <div itemprop="homeLocation" itemscope itemtype="http://schema.org/Place">
+                <div itemprop="geo" itemscope itemtype="http://schema.org/GeoCoordinates">
+                    <meta itemprop="latitude" content="{{ publicuser.location.lat }}"/>
+                    <meta itemprop="longitude" content="{{ publicuser.location.lon }}"/>
+                </div>
+            </div>
+        {% endif %}
+        <h6>Recipes ({{ recipes|length }} total)</h6>
+        {% for recipe in recipes %}
+            {{ recipe|recipe_snippet }}
+        {% endfor %}
+        {% if user and user.user_id == publicuser.user_id and not recipes %}
+            <a class="btn btn-large btn-primary" href="/new">Create new recipe</a>
+        {% endif %}
+    </div>
+    </div>
+    <div class="clear"></div>
+    <div id="messageModal" class="modal fade hide">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">×</button>
+            <h3>Send Message</h3>
+        </div>
+        <div class="modal-body">
+            <form>
+                <label>Recipient</label>
+                <span class="span3 uneditable-input">{{ publicuser.name }}</span>
+                <label>Message</label>
+                <input type="hidden" id="messageRecipient" value="{{ publicuser.name }}"/>
+                <textarea class="large" id="messageBody"></textarea>
+                <span class="help-text">You may use <a href="http://daringfireball.net/projects/markdown/syntax">Markdown</a> to style this text</span>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <a href="#" class="btn" data-dismiss="modal">Close</a>
+            <a id="sendMessage" href="#" class="btn btn-primary" data-dismiss="modal">Send</a>
+        </div>
+    </div>
+{% endblock %}

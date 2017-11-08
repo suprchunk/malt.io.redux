@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>{% block title %}Malt.io{% endblock %}</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" type="text/css" href="/static/styles/bootstrap.min.css"/>
+    <link rel="stylesheet" type="text/css" href="/static/styles/datepicker.css"/>
+    <link rel="stylesheet" type="text/css" href="/static/styles/timepicker.css"/>
+    <link rel="stylesheet" type="text/css" href="/static/styles/nouislider.css"/>
+	<link rel="stylesheet" type="text/css" href="/static/styles/main.css?v=1353054758"/>
+    <link rel="stylesheet" type="text/css" href="/static/styles/zocial.css" />
+    <link rel="stylesheet" type="text/css" href="/static/styles/jquery.rating.css"/>
+	{% block head %}{% endblock %}
+	<script type="text/javascript">
+		var _gaq = _gaq || [];
+		_gaq.push(['_setAccount', 'UA-16567764-4']);
+		_gaq.push(['_trackPageview']);
+
+		(function() {
+			var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+			ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+			var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+		})();
+	</script>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage"{% block body_attribs %}{% endblock %}>
+	{% block body %}{% endblock %}
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.2.min.js"></script>
+	<script type="text/javascript" src="/static/scripts/bootstrap.min.js"></script>
+    <script type="text/javascript" src="/static/scripts/bootstrap-datepicker.js"></script>
+    <script type="text/javascript" src="/static/scripts/bootstrap-timepicker.js"></script>
+    <script type="text/javascript" src="/static/scripts/jquery.nouislider.min.js"></script>
+    <script type="text/javascript" src="/static/scripts/jquery.rating.pack.js"></script>
+    <script type="text/javascript" src="/static/scripts/mousetrap.min.js"></script>
+	<script type="text/javascript" src="/static/scripts/main.js?v=1353054758"></script>
+	<!--[if lte IE 10]>
+        <script type="text/javascript">
+            var brokenBrowser = true;
+        </script>
+    <![endif] -->
+    <script type="text/javascript">
+        user = '{% if user %}{{ user.name }}{% else %}{% endif %}';
+    </script>
+    {% block body_scripts %}{% endblock %}
+    {% block scripts %}{% endblock %}
+</body>
+</html>

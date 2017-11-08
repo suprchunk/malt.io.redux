@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+
+{% block body_scripts %}
+    <script type="text/javascript">
+        $(document).ready(function () {
+            Recipe.initImport();
+        });
+
+      (function() {
+        var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+        po.src = 'https://apis.google.com/js/plusone.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+      })();
+    </script>
+{% endblock %}
+
+{% block body %}
+    <div class="navbar navbar-fixed-top">
+        <div class="navbar-inner">
+            <div class="container">
+                <a class="brand" href="/"><span style="color: white;">Malt</span>.io</a>
+                <ul class="nav">
+                    {% if user %}
+                        <li><a href="/dashboard">Dashboard</a></li>
+                    {% endif %}
+                    <li><a href="/users">Users</a></li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                            Recipes
+                            <b class="caret"></b>
+                        </a>
+                        <ul class="dropdown-menu">
+                            {% if user %}
+                                <li><a href="/users/{{ user.name }}/recipes">My recipes</a></li>
+                            {% endif %}
+                            <li><a href="/recipes">All recipes</a></li>
+                            <li class="divider"></li>
+                            <li><a href="/homebrew-formulas">Homebrew formulas</a></li>
+                            <li class="divider"></li>
+                            {% if user %}
+                                <li><a href="#importModal" data-toggle="modal">Import recipes</a></li>
+                            {% else %}
+                                <li><a href="/profile">Import recipes</a></li>
+                            {% endif %}
+                            <li><a href="/new">Create new recipe</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="http://blog.malt.io/">Blog</a></li>
+                </ul>
+                <form id="searchForm" class="navbar-search pull-left">
+                    <input id="searchQuery" type="text" class="search-query" placeholder="Search"/>
+                </form>
+                <ul class="nav pull-right">
+                    <li><a href="/donate">Donate</a></li>
+                    {% if user %}
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                            <img class="avatar-tiny" src="{{ user.avatar_tiny }}"/>{{ user.name }}{% if user.unread_messages %} <span class="badge badge-info">{{ user.unread_messages }}</span>{% endif %}
+                            <b class="caret"></b>
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a href="/messages">Private Messages</a></li>
+                                <li class="divider"></li>
+                                <li><a href="/users/{{ user.name }}">Public profile</a></li>
+                                <li><a href="/profile">User Settings</a></li>
+                                <li class="divider"></li>
+                                <li><a href="https://github.com/danielgtaylor/malt.io/issues?state=open">Report a problem</a></li>
+                                {% if user.is_admin %}
+                                    <li><a href="/_ah/stats">App Stats</a></li>
+                                    <li><a href="/_ah/admin">Admin</a></li>
+                                {% endif %}
+                                <li><a href="/logout">Logout</a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li><a href="/login">Login / Register</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="container" id="contentContainer">
+        {% block content %}
+            Content goes here!
+        {% endblock %}
+        <div class="footerlinks clear">
+            <div class="span2">
+                <span class="footerlogo">Malt.io</span>
+            </div>
+            <div class="span2">
+                <h6>Stores</h6>
+                <ul class="unstyled">
+                    <li><a href="http://www.austinhomebrew.com/" target="_blank">Austin Homebrew</a></li>
+                    <li><a href="http://www.midwestsupplies.com/" target="_blank">Midwest Supplies</a></li>
+                    <li><a href="http://morebeer.com/" target="_blank">More Beer</a></li>
+                    <li><a href="http://www.northernbrewer.com/" target="_blank">Northern Brewer</a></li>
+                </ul>
+            </div>
+            <div class="span2">
+                <h6>Magazines</h6>
+                <ul class="unstyled">
+                    <li><a href="http://www.ambrew.com/" target="_blank">American Brewer</a></li>
+                    <li><a href="http://byo.com/" target="_blank">Brew Your Own</a></li>
+                    <li><a href="http://www.homebrewersassociation.org/pages/zymurgy/current-issue" target="_blank">Zymurgy</a></li>
+                </ul>
+            </div>
+            <div class="span2">
+                <h6>Forums</h6>
+                <ul class="unstyled">
+                    <li><a href="http://www.homebrewersassociation.org/forum/index.php" target="_blank"><abbr title="American Homebrewers Association">AHA</abbr> Forums</a></li>
+                    <li><a href="http://www.homebrewtalk.com/" target="_blank">Homebrew Talk</a></li>
+                    <li><a href="http://forum.northernbrewer.com/" target="_blank"><abbr title="Northern Brewer">NB</abbr> Forums</a></li>
+
+                </ul>
+            </div>
+            <div class="span2">
+                <h6>Misc</h6>
+                <ul class="unstyled">
+                    <li><a href="/about">About</a></li>
+                    <li><a href="/privacy-policy">Site Privacy Policy</a></li>
+                    <li><a href="http://www.bjcp.org/" target="_blank"><abbr title="Beer Judge Certification Program">BJCP</abbr></a></li>
+                </ul>
+            </div>
+            <div class="clear"></div>
+        </div>
+        <div class="clear socialFooter" style="text-align: center;">
+            <div class="g-plus" data-height="69" data-href="//plus.google.com/111944532575819203216" data-rel="publisher"></div>
+            <a href="//plus.google.com/111944532575819203216" rel="publisher" style="display: none;">Malt.io</a>
+        </div>
+        <div class="footershortcut" style="text-align: center; margin-bottom: 1em;">
+            Press <a href="#shortcutsModal" data-toggle="modal"><span class="key">?</span></a> for help with keyboard shortcuts.
+        </div>
+        <div class="footer clear">
+            Copyright &copy; 2013 Daniel G. Taylor | <a href="https://github.com/danielgtaylor/malt.io">Malt.io on GitHub</a> | REVINFO
+        </div>
+    </div>
+    <div id="shortcutsModal" class="modal fade hide">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">×</button>
+            <h3>Keyboard Shortcuts</h3>
+        </div>
+        <div class="modal-body">
+            <p>
+                The following keyboard shortcuts can be used on Malt.io:
+            </p>
+            <h4>Global Menu</h4>
+            <table class="table">
+                <tr>
+                    <th style="width: 120px;">Combo</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td><span class="key">?</span></td>
+                    <td>Show this keyboard shortcut help dialog</td>
+                </tr>
+                <tr>
+                    <td><span class="key">ctrl + m</span> <span class="key">h</span></td>
+                    <td>Go to homepage or dashboard (if logged in)</td>
+                </tr>
+                <tr>
+                    <td><span class="key">ctrl + m</span> <span class="key">u</span></td>
+                    <td>View a list of users</td>
+                </tr>
+                <tr>
+                    <td><span class="key">ctrl + m</span> <span class="key">r</span></td>
+                    <td>View a list of recipes</td>
+                </tr>
+                <tr>
+                    <td><span class="key">ctrl + m</span> <span class="key">n</span></td>
+                    <td>Create a new recipe</td>
+                </tr>
+                <tr>
+                    <td><span class="key">ctrl + m</span> <span class="key">p</span></td>
+                    <td>View your public profile (if logged in)</td>
+                </tr>
+                <tr>
+                    <td><span class="key">esc</span></td>
+                    <td>Close dialog (if a dialog is open)</td>
+                </tr>
+            </table>
+            <h4>Recipe Editor</h4>
+            <table class="table">
+                <tr>
+                    <th style="width: 120px;">Combo</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td><span class="key">f</span> or <span class="key">s</span> or <span class="key">y</span></td>
+                    <td>Add a new fermentable, spice, or yeast to the recipe</td>
+                </tr>
+                <tr>
+                    <td><span class="key">tab</span></td>
+                    <td>Move to the next field in the table</td>
+                </tr>
+                <tr>
+                    <td><span class="key">shift + tab</span></td>
+                    <td>Move to the previous field in the table</td>
+                </tr>
+                <tr>
+                    <td><span class="key">enter</span></td>
+                    <td>Move to the next row or table</td>
+                </tr>
+                <tr>
+                    <td><span class="key">shift + enter</span></td>
+                    <td>Move to the previous row or table</td>
+                </tr>
+                <tr>
+                    <td><span class="key">ctrl + enter</span></td>
+                    <td>Add a new ingredient to the current table</td>
+                </tr>
+                <tr>
+                    <td><span class="key">ctrl + s</span></td>
+                    <td>Save the current recipe</td>
+                </tr>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <a href="#" class="btn" data-dismiss="modal">Close</a>
+        </div>
+    </div>
+    <div id="importModal" class="modal fade hide">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">×</button>
+            <h3>Import Recipes</h3>
+        </div>
+        <div class="modal-body">
+            <div class="alert">
+                <strong>Note:</strong> This feature is currently in beta, and not all BeerXML features are supported!
+            </div>
+            <p>
+                Importing recipes will add recipes to your account from an uploaded BeerXML file. BeerXML is a format supported by most brewing software that allows you to move your recipes between programs.
+            </p>
+            <form id="importRecipesForm" enctype="multipart/form-data" action="/recipes" method="post">
+                <input type="file" name="file"/>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <a href="#" class="btn" data-dismiss="modal">Cancel</a>
+            <a id="importButton" href="#" class="btn btn-success" data-dismiss="modal"><i class="icon-folder-open icon-white"></i> Import Recipes</a>
+        </div>
+    </div>
+    <style type='text/css'>@import url('http://getbarometer.s3.amazonaws.com/assets/barometer/css/barometer.css');</style>
+    <script src='http://getbarometer.s3.amazonaws.com/assets/barometer/javascripts/barometer.js' type='text/javascript'></script>
+    <script type="text/javascript" charset="utf-8">
+        BAROMETER.load('nAKHyLXC1bFwR4OXhxsYw');
+    </script>
+{% endblock %}
