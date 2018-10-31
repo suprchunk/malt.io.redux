@@ -16,7 +16,7 @@ The following technologies are used for Malt.io:
  * [Less](http://www.lesscss.org/)
  * [Gravatar](http://en.gravatar.com/)
  * [Stripe](https://stripe.com/)
- * [Nose](https://nose.readthedocs.org/en/latest/) and [Jasmine](http://pivotal.github.com/jasmine/)
+ * [Nose](https://nose.readthedocs.org/en/latest/) and [Jasmine](https://jasmine.github.io/)
 
 Getting Started
 ---------------
